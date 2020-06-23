@@ -23,9 +23,9 @@ public class ManagerListener implements Runnable {
     }
 
     public void run() {
-        try {
-            DataInputStream dis = new DataInputStream(socket.getInputStream());
-            while(true){
+        while(true){
+            try {
+                DataInputStream dis = new DataInputStream(socket.getInputStream());
                 // 要将int转换为枚举类型
                 MESSAGE = Message.values()[dis.readInt()];
                 System.out.println(MESSAGE);
@@ -79,9 +79,9 @@ public class ManagerListener implements Runnable {
                     }break;
                     default:break;
                 }
+            }catch (Exception e){
+                e.printStackTrace();
             }
-        }catch (Exception e){
-            e.printStackTrace();
         }
     }
 }

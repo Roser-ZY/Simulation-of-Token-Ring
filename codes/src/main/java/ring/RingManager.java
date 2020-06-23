@@ -13,17 +13,17 @@ import java.util.Random;
 import java.util.Scanner;
 
 public class RingManager {
-    private static int chosedHost;                                          // 从0~8，然后通过switch选择发送给谁
-    private static String[] hostIDs = {"1", "2", "3", "4", "5", "6", "7", "8"};                       // 获取输入的主机号
-    private static ServerSocket[] serverSockets = new ServerSocket[8];      // 8个服务器Socket，监听8台主机的消息
-    private static Socket[] socket = new Socket[8];                         // 8个服务器Socket获取到的主机Socket
+    private static int chosedHost;                                              // 从0~8，然后通过switch选择发送给谁
+    private static String[] hostIDs = {"1", "2", "3", "4", "5", "6", "7", "8"}; // 获取输入的主机号
+    private static ServerSocket[] serverSockets = new ServerSocket[8];          // 8个服务器Socket，监听8台主机的消息
+    private static Socket[] socket = new Socket[8];                             // 8个服务器Socket获取到的主机Socket
 
     // UI
-    private static JFrame jf;                                               // JFrame
+    private static JFrame jf;                                                   // JFrame
     // 布局
-    private static Box mainLayout;                                          // 主布局，左右两部分
-    private static Box leftLayout;                                          // 左布局，包括主机号输入，状态展示以及状态信息
-    private static Box rightLayout;                                         // 右布局，包含三个按钮
+    private static Box mainLayout;                                              // 主布局，左右两部分
+    private static Box leftLayout;                                              // 左布局，包括主机号输入，状态展示以及状态信息
+    private static Box rightLayout;                                             // 右布局，包含三个按钮
     private static Box hostIDInputLayout;
     private static Box showLayout;
     private static Box statusLayout;

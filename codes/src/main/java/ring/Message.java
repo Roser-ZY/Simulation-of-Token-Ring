@@ -17,7 +17,4 @@ public enum Message {
     DATA_ARRIVED_SOURCE_N,          // 数据回到源主机，但数据未被接收
     DATA_ARRIVED_SOURCE_Y,          // 数据回到源主机，数据被接受
     RESET_COMPLETE,                 // 完成重置
-
-    // 主机->主机
-    START,                          // 用于通知环上的主机开始运行，此时可以产生数据
 }

@@ -10,9 +10,9 @@ public class ProcessA {
     private static String[] hostIDs = new String[8];                            // 所有主机的主机号
     private static Boolean ifReset = false;                                     // 判断环是否处于重置状态，平时为false，当得到reset消息时变为true
     private static Boolean hasData = false;                                     // 判断是否有准备发送的数据，如果有监听线程就要停止转发令牌，并告知进程收到令牌
-    private static Boolean isAM = false;                                              // 是否为活动监视站
+    private static Boolean isAM = false;                                        // 是否为活动监视站
 //    private static int frameTimes;                                            // 帧经过次数，令牌或者数据，用于监测站
-    private static Queue<String> destinationID = new LinkedList<String>();      // 存放目的主机号
+    private static Queue<String> destinationID = new LinkedList<String>();           // 存放目的主机号
     private static Frame receiveData = null;                                    // 接受的数据内容
     private static ServerSocket serverSocket;                                   // 作为前一台主机的Server
     private static Socket clientForProcessSocket;                               // 作为客户Socket向之后的主机发送数据
