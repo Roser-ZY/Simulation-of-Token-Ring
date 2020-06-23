@@ -4,6 +4,7 @@ import java.io.DataInputStream;
 import java.net.Socket;
 import java.util.Date;
 
+// 用于创建消息监听线程
 public class ManagerListener implements Runnable {
     private int listenHost;                         // 标识监听的主机
     // 存放显示data传送的图片名
@@ -15,7 +16,7 @@ public class ManagerListener implements Runnable {
     // 存放数据未被正确接收的图片名
     private String[] pictureNames_RN = {"data-N-I.png", "data-N-II.png", "data-N-III.png", "data-N-IV.png", "data-N-V.png", "data-N-VI.png", "data-N-VII.png", "data-N-VIII.png"};
     private Socket socket;                          // 监听主机的Socket
-    private Message MESSAGE;
+    private Message MESSAGE;                        // 监听收到的消息
 
     ManagerListener(Socket socket, int listenHost){
         this.socket = socket;

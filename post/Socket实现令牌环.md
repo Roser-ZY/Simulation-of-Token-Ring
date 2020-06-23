@@ -234,7 +234,7 @@ AM有几个超级管理员功能。
 
 明白了这些，我们的这次模拟实验就足够了。
 
-当然，可以举个例子，这个例子是来自于网络的（因为我也不会啊）。
+当然，可以举个例子，这个例子是来自于网络的。
 
 首先创建Client。
 
@@ -396,15 +396,297 @@ Runtime.getRuntime().exec("command");
 
 #### 消息
 
+```java
+public enum Message {
+    // 主进程->主机
+    SET_ID,                         // 设置HostID
+    CHOSEN_AM,                      // 选择AM，生成令牌以及删除令牌
+    START_RING,                     // 开始运行
+    RESET_RING,                     // 重置
 
+    // 主机->主进程
+    TOKEN_ARRIVED,                  // 令牌到达此处
+    TOKEN_RECEIVED,                 // 截获令牌
+    TOKEN_SEND,                     // 令牌生成并发送
+    DATA_SEND,                      // 数据产生并发送
+    DATA_ARRIVED,                   // 数据转发
+    DATA_RECEIVED,                  // 数据接收
+    DATA_ARRIVED_SOURCE_N,          // 数据回到源主机，但数据未被接收
+    DATA_ARRIVED_SOURCE_Y,          // 数据回到源主机，数据被接受
+    RESET_COMPLETE,                 // 完成重置
+}
+```
 
 #### 主机进程
 
+```java
+public class ProcessA {
+    private static String hostID;                                               // 主机号
+    private static String[] hostIDs = new String[8];                            // 所有主机的主机号
+    private static Boolean ifReset = false;                                     // 判断环是否处于重置状态，平时为false，当得到reset消息时变为true，但是只有
+    private static Boolean hasData = false;                                     // 判断是否有准备发送的数据，如果有监听线程就要停止转发令牌，并告知进程收到令牌
+    private static Boolean isAM = false;                                        // 是否为活动监视站
+//    private static int frameTimes;                                            // 帧经过次数，令牌或者数据，用于监测站
+    private static Queue<String> destinationID = new LinkedList<String>();           // 存放目的主机号
+    private static Frame receiveData = null;                                    // 接受的数据内容
+    private static ServerSocket serverSocket;                                   // 作为前一台主机的Server
+    private static Socket clientForProcessSocket;                               // 作为客户Socket向之后的主机发送数据
+    private static Socket clientForManagerSocket;                               // 作为客户Socket向Manager发送数据
+    private static Socket preSocket;                                            // 前一台主机的Socket
+    private static Boolean clientForProcessStatus = false;                      // 判断主机是否连接上后一台主机
+    private static Boolean clientForManagerStatus = false;                      // 判断主机是否连接上后一台主机
+    
+    // get
+    public static String getHostID();
+    // 获取所有的主机ID，用于生成数据时使用
+    public static String[] getHostIDs();
+    public static Boolean getIfReset();
+    // 判断是否有数据要发送
+    public static Boolean ifHasData();
+    // 判断当前主机是否为AM
+    public static Boolean ifIsAM();
+    // 获取当前数据的目的主机号，用于Sender
+    public static String getDestination();
+    
+     // set
+    public static void setHostID(String HostID);
+    public static void setHostIDs(String[] HostIDs);
+    // 重置ifReset状态位
+    public static void resetIfReset();
+    // 拷贝当前的数据帧到主机中
+    public static void copyFrame(Frame frame);
+    // 刷新此状态位，如果待发送信息的队列中仍有数据则为置状态位为true，否则为false
+    public static void flushHasData();
+    // 添加目的主机号到队列中（代替整个数据，只保存主机号）
+    public static void addDestination(String destination);
+    public static void setIsAM();
+    public static void reset();
+    
+    // 与下一台主机连接
+    public static void connectNextProcess(int port);
+    
+    public static void main(String[] args);
+}
+```
+
+##### 主机数据生成
+
+```java
+public class ProcessADataGeneration implements Runnable{
+    private Random random = new Random((new Date()).getTime() % 23873);               // 随机种子
+    private int delay;                                                                      // 过多久产生一次数据
+    private int hostIndex;                                                                  // 当前主机的主机号在数组中的索引，用于判断目的主机是否为源主机，如果是则重置
+    private String destination;                                                             // 目的主机号，随机选择
+    private static volatile Boolean status = true;                                          // 通过状态位来判断是否结束线程
+
+    public static void setStatus();
+}
+```
+
+##### 主机数据监听
+
+````java
+public class ProcessADataListener implements Runnable {
+    private Socket socket;              // 被监听的主机的客户端Socket（即前一台主机的Socket）
+    private Socket nextSocket;          // 下一台主机的服务器socket
+    private Socket managerSocket;       // 主进程，用于发送信息给主进程
+    private Frame frame;                // 收到的数据帧
+    // 模拟未接收的情况
+    private Random random = new Random(((new Date()).getTime() % 2846));
+
+    ProcessADataListener(Socket socket, Socket nextSocket, Socket managerSocket);
+}
+````
+
+##### 主机数据发送
+
+````java
+public class ProcessADataSender implements Runnable {
+    private Socket nextSocket;                                  // 下一台主机的Socket
+    private Socket managerSocket;                               // 主进程Socket
+    private String destination;                                 // 目的主机
+    private Frame frame = new Frame();                          // 数据帧
+
+    ProcessADataSender(Socket nextSocket, Socket managerSocket);
+}
+````
+
+##### 主机消息监听
+
+```java
+public class ProcessAMessageListener implements Runnable {
+    private String[] hostIDs = new String[8];                   // 用于读取所有的主机号
+    private Socket managerSocket;                               // 监听目标的Socket，这里是主进程的Socket
+    private Socket nextSocket;                          // 下一台主机的Socket
+    private Message MESSAGE = null;                     // 接收到的消息，消息每接收一次，就置为null，表示无消息
+
+    ProcessAMessageListener(Socket managerSocket, Socket nextSocket);
+}
+```
+
 #### 主进程
+
+```java
+public class RingManager {
+    private static int chosedHost;                                              // 从0~8，然后通过switch选择发送给谁
+    private static String[] hostIDs = {"1", "2", "3", "4", "5", "6", "7", "8"}; // 获取输入的主机号
+    private static ServerSocket[] serverSockets = new ServerSocket[8];          // 8个服务器Socket，监听8台主机的消息
+    private static Socket[] socket = new Socket[8];                             // 8个服务器Socket获取到的主机Socket
+
+    // UI
+    private static JFrame jf;                                                   // JFrame
+    // 布局
+    private static Box mainLayout;                                              // 主布局，左右两部分
+    private static Box leftLayout;                                              // 左布局，包括主机号输入，状态展示以及状态信息
+    private static Box rightLayout;                                             // 右布局，包含三个按钮
+    private static Box hostIDInputLayout;
+    private static Box showLayout;
+    private static Box statusLayout;
+
+    // 主机号
+    // 标签
+    private static JLabel[] hostIDLabel = new JLabel[8];
+    // 输入框
+    private static JTextField[] hostIDInput = new JTextField[8];
+    // 输入Panel
+    private static JPanel[] hostIDPanel = new JPanel[8];
+
+    // 展示区域
+    private static JLabel statusPicture;
+
+    // 状态报告区域
+    private static JTextArea statusReport;
+    private static JScrollPane statusJsp;
+
+    // 按钮
+    private static JButton setHostIDButton;
+    private static JButton startButton;
+    private static JButton resetButton;
+    // 按钮panel
+    private static JPanel setHostIDPanel;
+    private static JPanel startPanel;
+    private static JPanel resetPanel;
+    
+    // get
+    public static String[] getHostIDs();		// 获取主机号
+    
+    // set
+    public static void setSetHostIDButton();	// 在MessageListener中设置主进程中的set Host ID Button为可用状态
+    public static void setStatus(String status);// 在状态栏显示状态信息
+    public static void setStatusPicture(String name);	// 设置显示部分的图片
+    // 创建用户界面
+    public static void createUI();
+    
+    // 主进程
+    public static void main(String[] args);
+}
+```
+
+##### 主进程的消息监听
+
+```java
+// 创建消息监听线程
+public class ManagerListener implements Runnable {
+    private int listenHost;                         // 标识监听的主机
+    // 存放显示data传送的图片名
+    private String[] pictureNames_D = {"data-I.png", "data-II.png", "data-III.png", "data-IV.png", "data-V.png", "data-VI.png", "data-VII.png", "data-VIII.png"};
+    // 存放显示token传送的图片名
+    private String[] pictureNames_T = {"token-I.png", "token-II.png", "token-III.png", "token-IV.png", "token-V.png", "token-VI.png", "token-VII.png", "token-VIII.png"};
+    // 存放数据被正确接收的图片名
+    private String[] pictureNames_RY = {"data-Y-I.png", "data-Y-II.png", "data-Y-III.png", "data-Y-IV.png", "data-Y-V.png", "data-Y-VI.png", "data-Y-VII.png", "data-Y-VIII.png"};
+    // 存放数据未被正确接收的图片名
+    private String[] pictureNames_RN = {"data-N-I.png", "data-N-II.png", "data-N-III.png", "data-N-IV.png", "data-N-V.png", "data-N-VI.png", "data-N-VII.png", "data-N-VIII.png"};
+    private Socket socket;                          // 监听主机的Socket
+    private Message MESSAGE;                        // 监听收到的消息
+    
+    // 构造函数
+    ManagerListener(Socket socket, int listenHost);
+}
+```
+
+##### 主进程的消息发送
+
+```java
+public class ManagerSender implements Runnable {
+    private Socket socket;
+    private Message MESSAGE;
+
+    ManagerSender(Socket socket, Message MESSAGE);
+}
+```
+
+##### 数据接收
+
+```java
+// 主要是将数据内容输出
+public class ProcessDataReceiver implements Runnable {
+    private Frame frame;
+
+    ProcessDataReceiver(Frame frame);
+}
+```
+
+##### 帧转发
+
+```java
+// 通过线程将帧转发
+public class ProcessFrameSender implements Runnable {
+    private Socket socket;
+    private Frame frame;
+
+    ProcessFrameSender(Socket socket, Frame frame);
+}
+```
+
+#### 帧
+
+```java
+public class Frame implements Serializable {
+    public Boolean isToken;             // 判断是否为令牌
+    public String sourceHost;           // 源主机号
+    public String destinationHost;      // 目的主机号
+    public String content;              // 数据内容，这里是Hello World
+    public Boolean isReceived;          // 判断是否被接收
+}
+```
+
+#### 全局状态
+
+````java
+// 用于控制主机发来的消息对于整个系统的影响
+public class GlobalStatus {
+    private static volatile Boolean hasSetHostID = false;            // 判断是否已经设置主机号
+    private static volatile Boolean hasStarted = false;              // 判断是否已经开始模拟
+
+    // get
+    public static Boolean getHasSetHostID();
+    public static Boolean getHasStarted();
+    
+    // set
+    public static void setHostID();
+    public static void started();
+    public static void reset();
+}
+````
+
+##### 令牌生成工具
+
+```java
+// 因为直接总是要生成令牌导致代码重复，因此单独摘出来
+public class Utils {
+    private static Frame token = new Frame();
+
+    public static void generateToken(Socket managerSocket, Socket nextSocket);
+}
+```
+
+#### 类图
+
+![类图](E:\Catalog\VitalFiles\Study\Course\计算机网络\课程设计\img\类图.jpg)
 
 ### 主进程
 
-主进程负责图形界面，并统筹所有主机的发送过程，比如现在主机A正在发送令牌环给B，就要从图形界面中展示出来，初步想法就是建立一个状态栏，显示状态，另外主进程还需要负责将我们输入的主机号发送给各个主机，然后各个主机初始化自己的主机号作为标识。
+主进程负责图形界面，并统筹所有主机的发送过程，比如现在主机A正在发送令牌环给B，就要从图形界面中展示出来，通过建立一个状态栏，显示状态，另外主进程还需要负责将我们输入的主机号发送给各个主机，然后各个主机初始化自己的主机号作为标识。
 
 主进程作为一个总服务器，需要监听多个端口。
 
@@ -424,17 +706,31 @@ Runtime.getRuntime().exec("command");
 
 注意：**我们这里的活动监视站，是选中的第一个发送令牌的主机**。
 
+#### 流程图
+
+##### 主机进程
+
+![主机进程流程图](E:\Catalog\VitalFiles\Study\Course\计算机网络\课程设计\img\主机进程流程图.jpg)
+
+##### 数据生成
+
+![数据生成流程图](E:\Catalog\VitalFiles\Study\Course\计算机网络\课程设计\img\数据生成流程图.jpg)
+
+##### 数据监听
+
+![数据监听流程图](E:\Catalog\VitalFiles\Study\Course\计算机网络\课程设计\img\数据监听流程图.jpg)
+
 ### 主机进程
 
 主机进程需要完成的工作主要是，从主进程获取主机号并更新，如果自己有数据要发送，需要将这个消息发送给主进程，如果令牌环循环到此处或者数据到此处需要报告，如果自己获取到了数据也要报告，总而言之，就是各种情况都要向主进程报告。
 
-另外主机进程还要自己生成数据，在随机的几秒内产生一个数据，然后等待，等自己接手令牌环后发送，另外这个数据的目的主机需要随机生成，我们将所有的主机号放在一个类当中，这个类使用单例模式，这样就会方便很多。
+另外主机进程还要自己生成数据，在随机的几秒内产生一个数据，然后等待，等自己接手令牌后发送，另外这个数据的目的主机需要随机生成，我们将所有的主机号在每个主机进程中都存放一次，方便生成帧中的目的主机号。
 
 主机中也要设置监听线程和发送线程。
 
 同样，监听线程要不断监听，有两个监听线程，一个负责监听主进程，另一个负责监听此主机的前一个主机进程。
 
-注意，我们的主机需要四种线程：两个负责与主进程的消息交流，两个负责数据的接收和发送。
+因此，我们的主机需要四种线程：两个负责与主进程的消息交流，两个负责数据的接收和发送。
 
 负责数据接收的线程在没有数据要发送的时候直接转发，不再回到主机进程，当有数据要发送时则改变某些状态位，不再转发，发送过程由主机进程操作。
 
@@ -456,13 +752,11 @@ Runtime.getRuntime().exec("command");
 
 **我们将数据的各个字段封装在对象中**。
 
-**此时Socket发送的不再是字符串而是对象了，可以使用json来操作，但是这个还要学习成本，所以我们这里实现对象Serializable，在这个类中设置一个serialVersionUID，然后就可以通过ObjectInputStream和ObjutOutputStream来读取和输出了**。
-
-具体的实现方法看一下代码就明白了
+**此时Socket发送的不再是字符串而是对象了，可以使用json来操作，但是这个还要学习成本，所以我们这里实现对象Serializable，用在Frame上，然后就可以通过ObjectInputStream和ObjutOutputStream来读取和输出了**。
 
 #### 数据接收
 
-数据接收时，按道理是要将数据复制到自己的缓冲区的，当然我们这里没办法实现两个过程：即查看和复制。我们这里全部都是读取出来，然后转发出去，接收时将数据复制到自己的接收数据中，然后发送数据，此时发送数据要检查接收数据是否为空，如果不为空则判断其是否为令牌，如果不是令牌，继续判断其源主机是否为自己，如果不是则直接转发。如果是令牌，则将自己的数据发送出去。
+数据接收时，按道理是要将数据复制到自己的缓冲区的，当然我们这里没办法实现两个过程：即查看和复制。我们这里全部都是读取出来，然后转发出去，接收时将数据复制到自己的接收数据中，然后发送数据，此时发送数据要判断其是否为令牌，如果不是令牌，继续判断其源主机是否为自己，如果不是则直接转发。如果是令牌，则将自己的数据发送出去。
 
 这里的接收数据非常重要，我们需要通过监听线程将监听到的数据保存到接收数据中，然后进行一系列判断之后新建发送线程。
 
@@ -483,6 +777,14 @@ Runtime.getRuntime().exec("command");
 在图形界面中有一个删除令牌的按钮，点击后令牌到达活动监视站时由活动监视站删除（删除后要告知主进程，将活动监视站的主机号设为-1），此时系统中没有令牌，也没有了活动监视站。
 
 之后必须重新点击开始运行，此时会新选择一个活动监视站。
+
+#### 流程图
+
+![主进程流程图](E:\Catalog\VitalFiles\Study\Course\计算机网络\课程设计\img\主进程流程图.jpg)
+
+## 概览
+
+![消息交互](E:\Catalog\VitalFiles\Study\Course\计算机网络\课程设计\img\消息交互.jpg)
 
 ## TODO
 

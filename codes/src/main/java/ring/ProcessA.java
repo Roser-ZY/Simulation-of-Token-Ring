@@ -8,11 +8,11 @@ import java.util.Queue;
 public class ProcessA {
     private static String hostID;                                               // 主机号
     private static String[] hostIDs = new String[8];                            // 所有主机的主机号
-    private static Boolean ifReset = false;                                     // 判断环是否处于重置状态，平时为false，当得到reset消息时变为true
+    private static Boolean ifReset = false;                                     // 判断环是否处于重置状态，平时为false，当得到reset消息时变为true，只有AM才会设置
     private static Boolean hasData = false;                                     // 判断是否有准备发送的数据，如果有监听线程就要停止转发令牌，并告知进程收到令牌
     private static Boolean isAM = false;                                        // 是否为活动监视站
 //    private static int frameTimes;                                            // 帧经过次数，令牌或者数据，用于监测站
-    private static Queue<String> destinationID = new LinkedList<String>();           // 存放目的主机号
+    private static Queue<String> destinationID = new LinkedList<String>();      // 存放目的主机号
     private static Frame receiveData = null;                                    // 接受的数据内容
     private static ServerSocket serverSocket;                                   // 作为前一台主机的Server
     private static Socket clientForProcessSocket;                               // 作为客户Socket向之后的主机发送数据
@@ -25,18 +25,21 @@ public class ProcessA {
     public static String getHostID(){
         return hostID;
     }
+    // 用于生成数据
     public static String[] getHostIDs(){
         return hostIDs;
     }
     public static Boolean getIfReset(){
         return ifReset;
     }
+    // 判断当前主机是否有要发送的数据
     public static Boolean ifHasData(){
         return hasData;
     }
     public static Boolean ifIsAM(){
         return isAM;
     }
+    // 获取当前数据的目的主机号，用于Sender
     public static String getDestination(){
         return destinationID.poll();
     }
@@ -88,6 +91,7 @@ public class ProcessA {
     public static void connectManagerProcess(int port){
         try{
             clientForManagerSocket = new Socket("localhost", port);
+            // 置为true，此时就停止循环连接
             clientForManagerStatus = true;
         }catch (Exception e){
             e.printStackTrace();

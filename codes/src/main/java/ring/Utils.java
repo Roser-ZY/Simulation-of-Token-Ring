@@ -2,6 +2,7 @@ package ring;
 
 import java.net.Socket;
 
+// 因为直接总是要生成令牌导致代码重复，因此单独摘出来
 public class Utils {
     private static Frame token = new Frame();
 

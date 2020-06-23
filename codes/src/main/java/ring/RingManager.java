@@ -53,14 +53,17 @@ public class RingManager {
     private static JPanel resetPanel;
 
     // get
+    // 获取主机号
     public static String[] getHostIDs() {
         return hostIDs;
     }
 
     // set
+    // 设置setHostIDButton可用
     public static void setSetHostIDButton(){
         setHostIDButton.setEnabled(true);
     }
+    // 设置状态栏显示的信息
     public static void setStatus(String status){
         statusReport.append("\n" + status + "\n");
         // 设置自动滚动到底部
@@ -71,6 +74,7 @@ public class RingManager {
         }
         statusJsp.getVerticalScrollBar().setValue(statusJsp.getVerticalScrollBar().getMaximum());
     }
+    // 设置显示部分的图片
     public static void setStatusPicture(String name){
         try {
             statusPicture.setIcon(new ImageIcon(RingManager.class.getClassLoader().getResource(name).toURI().getPath()));

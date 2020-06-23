@@ -43,6 +43,7 @@ public class ProcessADataListener implements Runnable {
                         ProcessA.resetIfReset();
                         // 通知主进程
                         // 主要是为了更换图片和打印状态信息
+                        // 不转发令牌，即停止令牌环
                         new Thread(new ProcessMessageSender(managerSocket, Message.RESET_COMPLETE)).start();
                     }
                     // 如果有数据，则将令牌截获，并发送数据
@@ -84,8 +85,7 @@ public class ProcessADataListener implements Runnable {
                     }
                     // 如果到达目的主机，则接收
                     // 可以在此调整出错的概率，这里是2%的出错率，当然可以随便调整，如果想要展示效果的话，可以调高一些
-                    // TODO 将概率更改回去
-                    else if(frame.destinationHost.equals(ProcessA.getHostID()) && random.nextInt(50) == 23){
+                    else if(frame.destinationHost.equals(ProcessA.getHostID()) && random.nextInt(50) != 23){
                         // 更改状态位
                         frame.isReceived = true;
                         // 接收数据帧
